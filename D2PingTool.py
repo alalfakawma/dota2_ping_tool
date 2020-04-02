@@ -1,6 +1,9 @@
+#! /bin/python
+
 import tkinter as tk
 from ping3 import ping
 from functools import partial
+from subprocess import call
 
 # Constants
 WIN_WIDTH=640
@@ -22,15 +25,19 @@ mainFrame.place(relwidth=1, relheight=1)
 
 # Dash Frame
 dashFrame = tk.Frame(mainFrame)
-dashFrame.pack()
+dashFrame.place(relwidth=1, relheight=0.5)
 
 # Head label
 headLabel = tk.Label(dashFrame, text=TITLE, pady=20, font=("Helvetica", 18, "bold"))
-headLabel.grid(row=0, column=0)
+headLabel.pack()
 
 # Button Frame
 buttonFrame = tk.Frame(mainFrame)
-buttonFrame.pack()
+buttonFrame.place(rely=0.12, relwidth=1, relheight=0.5)
+
+# Result Frame
+resultFrame = tk.Frame(mainFrame)
+resultFrame.place(rely=0.65, relwidth=1)
 
 # List of the servers and their respective ips
 ipList = {
@@ -41,7 +48,7 @@ ipList = {
     "Europe East 2 (Vienna, Austria)": "185.25.182.1",
     "Europe West 1 (Luxembourg)": "lux.valve.net",
     "Europe West 2 (Luxembourg)": "146.66.158.1",
-    "India (Kolkata)": "116.202.224.146",
+    # "India (Kolkata)": "116.202.224.146",
     "Peru (Lima)": "191.98.144.1",
     "Russia 1 (Stockholm, Sweden)": "sto.valve.net",
     "Russia 2 (Stockholm, Sweden)": "185.25.180.1",
@@ -58,9 +65,46 @@ ipList = {
     "US West (Seattle, WA)": "eat.valve.net"
 }
 
+def pingSV(ip: str, t: int = 0):
+    if t:
+        pingD = {
+                "max": None,
+                "min": None,
+                "avg": None,
+                "times": []
+            }
+        for i in range(t):
+            pingD["times"].append(ping(ip, unit="ms"))
+        
+        pingD["max"] = max(pingD["times"])
+        pingD["min"] = min(pingD["times"])
+        pingD["avg"] = sum(pingD["times"]) / len(pingD["times"])
+        return pingD
+    else:
+        return ping(ip, unit="ms")
+
+def clearFrame(f):
+    for w in f.winfo_children():
+        w.destroy()
+
 # Button click callback function
 def buttonClick(server, ip):
-    print('%s : %s' % (server, ip))
+    clearFrame(resultFrame)
+    sv_ping = pingSV(ip, 5) # min, max, avg, times
+    for k, v in sv_ping.items():
+        if k == "times": continue # Don't want times to be part of the output
+        # Determine the color
+        if v <= 50: color = "lightgreen"
+        elif v <= 120: color = "green"
+        elif v <= 200: color = "orange"
+        else: color = "red"
+        # Result Label
+        resultLabel = tk.Frame(resultFrame)
+        resultLabel.pack()
+        rl = tk.Label(resultLabel, text=("%s: " % k.title()), font=("Helvetica", 18, "bold"))
+        rl.pack(side="left")
+        rd = tk.Label(resultLabel, text=("%.2f" % v), font=("Helvetica", 18, "bold"), fg=color)
+        rd.pack(side="left")
 
 # Add the buttons according to the list
 row = 0
@@ -75,16 +119,5 @@ for idx, (server, ip) in enumerate(ipList.items()):
     button = tk.Button(buttonFrame, text=server, command=partial(buttonClick, server, ip), font=("Helvetica", 9))
     button.grid(row=row, column=col, sticky="nwse")
     col += 1
-
-# Entry for showing the icmp ping status
-# First create a frame for it
-pingFrame = tk.Frame(mainFrame, bg="#000000")
-pingFrame.place(relwidth=1, relheight=1, rely=0.6)
-
-print(ping('google.com'))
-
-# for i in range(15):
-#     pingLabel = tk.Label(pingFrame, text="Ping: 30ms", bg="#000000", fg="lightgreen")
-#     pingLabel.grid(row=i)
 
 root.mainloop()
